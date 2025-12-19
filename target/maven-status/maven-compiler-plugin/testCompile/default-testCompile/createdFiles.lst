@@ -1,0 +1,3 @@
+com/example/pubsubtogcs/MessageTest.class
+com/example/pubsubtogcs/AvroMessageParserTest.class
+com/example/pubsubtogcs/PubsubToGCSPipelineTest.class

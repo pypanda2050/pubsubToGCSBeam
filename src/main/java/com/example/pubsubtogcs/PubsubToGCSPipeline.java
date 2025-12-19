@@ -16,12 +16,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,7 +169,7 @@ public class PubsubToGCSPipeline {
     /**
      * CombineFn to format messages as CSV with header.
      */
-    private static class FormatCSVCombineFn extends Combine.CombineFn<Message, StringBuilder, String> {
+    static class FormatCSVCombineFn extends Combine.CombineFn<Message, StringBuilder, String> {
         @Override
         public StringBuilder createAccumulator() {
             return new StringBuilder("saga_id,node_id,create_timestamp,header,body\n");

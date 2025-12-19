@@ -1,11 +1,13 @@
 package com.example.pubsubtogcs;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * Message model representing the PubSub message structure.
  */
-public class Message {
+public class Message implements Serializable {
+    private static final long serialVersionUID = 1L;
     private UUID sagaId;
     private byte[] nodeId;
     private long createTimestamp;

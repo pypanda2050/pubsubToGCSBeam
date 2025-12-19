@@ -19,9 +19,11 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
         try {
             GenericRecord record = c.element();
             Message message = parseAvroRecord(record);
-            c.output(message);
+            if (message != null) {
+                c.output(message);
+            }
         } catch (Exception e) {
-            LOG.error("Error parsing Avro record", e);
+            LOG.error("Error parsing Avro record: " + e.getMessage(), e);
             // Optionally, you can output to a dead letter queue or handle errors differently
         }
     }
@@ -36,10 +38,21 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
         // Parse saga_id (UUID)
         Object sagaIdObj = record.get("saga_id");
         if (sagaIdObj != null) {
+            String sagaIdStr = null;
             if (sagaIdObj instanceof String) {
-                sagaId = UUID.fromString((String) sagaIdObj);
+                sagaIdStr = (String) sagaIdObj;
+            } else if (sagaIdObj instanceof CharSequence) {
+                sagaIdStr = sagaIdObj.toString();
             } else if (sagaIdObj instanceof UUID) {
                 sagaId = (UUID) sagaIdObj;
+            }
+            
+            if (sagaIdStr != null && !sagaIdStr.isEmpty()) {
+                try {
+                    sagaId = UUID.fromString(sagaIdStr);
+                } catch (IllegalArgumentException e) {
+                    LOG.warn("Invalid UUID format: " + sagaIdStr, e);
+                }
             }
         }
 
@@ -48,8 +61,10 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
         if (nodeIdObj != null) {
             if (nodeIdObj instanceof ByteBuffer) {
                 ByteBuffer buffer = (ByteBuffer) nodeIdObj;
-                nodeId = new byte[buffer.remaining()];
-                buffer.get(nodeId);
+                // Duplicate to avoid mutating the original buffer
+                ByteBuffer duplicate = buffer.duplicate();
+                nodeId = new byte[duplicate.remaining()];
+                duplicate.get(nodeId);
             } else if (nodeIdObj instanceof byte[]) {
                 nodeId = (byte[]) nodeIdObj;
             }
@@ -70,8 +85,10 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
         if (headerObj != null) {
             if (headerObj instanceof ByteBuffer) {
                 ByteBuffer buffer = (ByteBuffer) headerObj;
-                header = new byte[buffer.remaining()];
-                buffer.get(header);
+                // Duplicate to avoid mutating the original buffer
+                ByteBuffer duplicate = buffer.duplicate();
+                header = new byte[duplicate.remaining()];
+                duplicate.get(header);
             } else if (headerObj instanceof byte[]) {
                 header = (byte[]) headerObj;
             }
@@ -82,8 +99,10 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
         if (bodyObj != null) {
             if (bodyObj instanceof ByteBuffer) {
                 ByteBuffer buffer = (ByteBuffer) bodyObj;
-                body = new byte[buffer.remaining()];
-                buffer.get(body);
+                // Duplicate to avoid mutating the original buffer
+                ByteBuffer duplicate = buffer.duplicate();
+                body = new byte[duplicate.remaining()];
+                duplicate.get(body);
             } else if (bodyObj instanceof byte[]) {
                 body = (byte[]) bodyObj;
             }
