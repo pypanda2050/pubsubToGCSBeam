@@ -102,9 +102,9 @@ Message Object
     │       ↓
     │   GCS: event_processing/YYYY-MM-DD-HH-MM-*.csv
     │
-    └─→ Event Data Path (Header & Body Present)
+    └─→ Event Data Path (Header or Body Present)
             ↓
-        Filter (hasHeaderAndBody)
+        Filter (hasHeaderOrBody)
             ↓
         Window (1 minute)
             ↓
@@ -187,7 +187,8 @@ Message Object
 - `body` (byte[])
 
 **Key Methods**:
-- `hasHeaderAndBody()` - Checks if both header and body are non-empty
+- `hasHeaderOrBody()` - Checks if either header or body (or both) are non-empty
+- `hasHeaderAndBody()` - Checks if both header and body are non-empty (deprecated)
 - `toCSV()` - Converts message to CSV format with proper escaping
 
 #### 5. FormatCSVCombineFn
@@ -211,7 +212,7 @@ Message Object
 
 #### Event Data Path (Filtered Messages)
 
-1. **Filter**: Only messages where both `header` and `body` are non-empty
+1. **Filter**: Messages where either `header` or `body` (or both) are non-empty
 2. **Assign Timestamps**: Assigns event timestamps based on `createTimestamp`
 3. **Window**: Fixed windows of 1 minute duration
 4. **Format CSV**: Combines all messages in window into CSV format
@@ -265,9 +266,9 @@ sequenceDiagram
         else Valid message
             AvroMessageParser->>Message: Create Message object
             Message->>EventProcessing: All messages
-            Message->>EventData: Check hasHeaderAndBody()
+            Message->>EventData: Check hasHeaderOrBody()
             
-            alt hasHeaderAndBody() == true
+            alt hasHeaderOrBody() == true
                 EventData->>EventData: Filter and process
             end
         end
@@ -372,13 +373,13 @@ sequenceDiagram
     Messages->>Filter: PCollection<Message>
     
     loop For each message
-        Filter->>Message: hasHeaderAndBody()
+        Filter->>Message: hasHeaderOrBody()
         Message->>Message: Check header != null && header.length > 0
         Message->>Message: Check body != null && body.length > 0
         
-        alt Both header and body present
+        alt Either header or body (or both) present
             Filter->>Filter: Pass message through
-        else Missing header or body
+        else Both header and body missing
             Filter->>Filter: Drop message
         end
     end
@@ -426,13 +427,13 @@ sequenceDiagram
 
 ### 4. Two Output Paths
 
-**Decision**: Separate paths for all messages vs. filtered messages
+**Decision**: Separate paths for all messages vs. filtered messages (with header or body)
 
 **Rationale**:
 - Clear separation of concerns
 - Different consumers may need different data
 - Allows independent scaling and processing
-- Maintains audit trail (all messages) while providing filtered view
+- Maintains audit trail (all messages) while providing filtered view of messages with data payloads
 
 ### 5. CSV Output Format
 

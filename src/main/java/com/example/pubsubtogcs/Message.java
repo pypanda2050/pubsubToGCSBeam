@@ -67,9 +67,18 @@ public class Message implements Serializable {
 
     /**
      * Check if both header and body are not empty.
+     * @deprecated Use hasHeaderOrBody() instead
      */
+    @Deprecated
     public boolean hasHeaderAndBody() {
         return (header != null && header.length > 0) && (body != null && body.length > 0);
+    }
+
+    /**
+     * Check if either header or body (or both) are not empty.
+     */
+    public boolean hasHeaderOrBody() {
+        return (header != null && header.length > 0) || (body != null && body.length > 0);
     }
 
     /**

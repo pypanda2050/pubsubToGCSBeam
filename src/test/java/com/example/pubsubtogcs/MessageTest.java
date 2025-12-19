@@ -96,6 +96,72 @@ public class MessageTest {
     }
 
     @Test
+    public void testHasHeaderOrBody_BothPresent() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] header = "header".getBytes();
+        byte[] body = "body".getBytes();
+        Message message = new Message(sagaId, null, 1234567890L, header, body);
+
+        assertTrue(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_OnlyHeader() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] header = "header".getBytes();
+        Message message = new Message(sagaId, null, 1234567890L, header, null);
+
+        assertTrue(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_OnlyBody() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] body = "body".getBytes();
+        Message message = new Message(sagaId, null, 1234567890L, null, body);
+
+        assertTrue(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_BothMissing() {
+        UUID sagaId = UUID.randomUUID();
+        Message message = new Message(sagaId, null, 1234567890L, null, null);
+
+        assertFalse(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_EmptyArrays() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] header = new byte[0];
+        byte[] body = new byte[0];
+        Message message = new Message(sagaId, null, 1234567890L, header, body);
+
+        assertFalse(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_EmptyHeaderButValidBody() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] header = new byte[0];
+        byte[] body = "body".getBytes();
+        Message message = new Message(sagaId, null, 1234567890L, header, body);
+
+        assertTrue(message.hasHeaderOrBody());
+    }
+
+    @Test
+    public void testHasHeaderOrBody_ValidHeaderButEmptyBody() {
+        UUID sagaId = UUID.randomUUID();
+        byte[] header = "header".getBytes();
+        byte[] body = new byte[0];
+        Message message = new Message(sagaId, null, 1234567890L, header, body);
+
+        assertTrue(message.hasHeaderOrBody());
+    }
+
+    @Test
     public void testToCSV_CompleteMessage() {
         UUID sagaId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         byte[] nodeId = "node123".getBytes();

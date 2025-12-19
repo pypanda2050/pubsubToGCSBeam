@@ -68,7 +68,7 @@ public class PubsubToGCSPipeline {
         // Write to event_processing (all messages)
         writeEventProcessing(messages, options);
 
-        // Write to event_data (only messages with both header and body)
+        // Write to event_data (messages with either header or body or both)
         writeEventData(messages, options);
 
         pipeline.run().waitUntilFinish();
@@ -98,11 +98,11 @@ public class PubsubToGCSPipeline {
     }
 
     /**
-     * Write messages with both header and body to event_data prefix.
+     * Write messages with either header or body (or both) to event_data prefix.
      */
     private static void writeEventData(PCollection<Message> messages, PubsubToGCSOptions options) {
         messages
-                .apply("Filter Messages with Header and Body", Filter.by(Message::hasHeaderAndBody))
+                .apply("Filter Messages with Header or Body", Filter.by(Message::hasHeaderOrBody))
                 .apply("Assign Timestamps for Event Data", ParDo.of(new DoFn<Message, Message>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {

@@ -217,7 +217,7 @@ public class AvroMessageParserTest {
             assertArrayEquals(nodeId, message.getNodeId());
             assertArrayEquals(emptyHeader, message.getHeader());
             assertArrayEquals(emptyBody, message.getBody());
-            assertFalse(message.hasHeaderAndBody());
+            assertFalse(message.hasHeaderOrBody());
             return null;
         });
 

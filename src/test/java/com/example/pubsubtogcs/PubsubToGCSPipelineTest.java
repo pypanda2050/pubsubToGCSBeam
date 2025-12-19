@@ -23,31 +23,39 @@ public class PubsubToGCSPipelineTest {
     public TestPipeline pipeline = TestPipeline.create();
 
     @Test
-    public void testFilterMessagesWithHeaderAndBody() {
+    public void testFilterMessagesWithHeaderOrBody() {
         UUID sagaId1 = UUID.randomUUID();
         UUID sagaId2 = UUID.randomUUID();
         UUID sagaId3 = UUID.randomUUID();
         UUID sagaId4 = UUID.randomUUID();
+        UUID sagaId5 = UUID.randomUUID();
 
         Message msg1 = new Message(sagaId1, null, 1234567890L, "header1".getBytes(), "body1".getBytes());
         Message msg2 = new Message(sagaId2, null, 1234567890L, null, "body2".getBytes());
         Message msg3 = new Message(sagaId3, null, 1234567890L, "header3".getBytes(), null);
         Message msg4 = new Message(sagaId4, null, 1234567890L, "header4".getBytes(), "body4".getBytes());
+        Message msg5 = new Message(sagaId5, null, 1234567890L, null, null);
 
         PCollection<Message> input = pipeline.apply(
-                Create.of(msg1, msg2, msg3, msg4)
+                Create.of(msg1, msg2, msg3, msg4, msg5)
                         .withCoder(org.apache.beam.sdk.coders.SerializableCoder.of(Message.class)));
-        PCollection<Message> filtered = input.apply("Filter Messages with Header and Body", 
-                Filter.by(Message::hasHeaderAndBody));
+        PCollection<Message> filtered = input.apply("Filter Messages with Header or Body", 
+                Filter.by(Message::hasHeaderOrBody));
 
         PAssert.that(filtered).satisfies(messages -> {
             int count = 0;
             for (Message msg : messages) {
-                assertTrue(msg.hasHeaderAndBody());
-                assertTrue(msg.getSagaId().equals(sagaId1) || msg.getSagaId().equals(sagaId4));
+                assertTrue(msg.hasHeaderOrBody());
+                // Should include msg1 (both), msg2 (body only), msg3 (header only), msg4 (both)
+                // Should NOT include msg5 (neither)
+                assertTrue(msg.getSagaId().equals(sagaId1) || 
+                          msg.getSagaId().equals(sagaId2) ||
+                          msg.getSagaId().equals(sagaId3) ||
+                          msg.getSagaId().equals(sagaId4));
+                assertFalse(msg.getSagaId().equals(sagaId5));
                 count++;
             }
-            assertEquals(2, count);
+            assertEquals(4, count);
             return null;
         });
 

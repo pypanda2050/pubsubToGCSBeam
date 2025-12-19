@@ -13,7 +13,7 @@ This pipeline reads messages from Google Cloud Pub/Sub in Avro format and writes
 
 The pipeline creates two types of output files:
 1. **event_processing**: All messages are written to files under the `event_processing/` prefix, with filenames appended with the `create_timestamp` truncated to minute precision.
-2. **event_data**: Only messages where both `header` and `body` are not empty are written to files under the `event_data/` prefix, with filenames appended with the `create_timestamp` truncated to minute precision.
+2. **event_data**: Messages where either `header` or `body` (or both) are not empty are written to files under the `event_data/` prefix, with filenames appended with the `create_timestamp` truncated to minute precision.
 
 ## Prerequisites
 
