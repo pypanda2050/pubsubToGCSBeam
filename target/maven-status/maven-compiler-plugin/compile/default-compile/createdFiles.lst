@@ -1,8 +1,0 @@
-com/example/pubsubtogcs/PubsubToGCSPipeline$2.class
-com/example/pubsubtogcs/PubsubToGCSPipeline$PubsubToAvroParser.class
-com/example/pubsubtogcs/AvroMessageParser.class
-com/example/pubsubtogcs/PubsubToGCSPipeline$1.class
-com/example/pubsubtogcs/PubsubToGCSPipeline.class
-com/example/pubsubtogcs/PubsubToGCSPipeline$FormatCSVCombineFn.class
-com/example/pubsubtogcs/Message.class
-com/example/pubsubtogcs/PubsubToGCSPipeline$PubsubToGCSOptions.class
