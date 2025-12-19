@@ -56,7 +56,7 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
             }
         }
 
-        // Parse node_id (byte[])
+        // Parse node_id (byte[]) - must be non-empty
         Object nodeIdObj = record.get("node_id");
         if (nodeIdObj != null) {
             if (nodeIdObj instanceof ByteBuffer) {
@@ -68,6 +68,16 @@ public class AvroMessageParser extends DoFn<GenericRecord, Message> {
             } else if (nodeIdObj instanceof byte[]) {
                 nodeId = (byte[]) nodeIdObj;
             }
+            
+            // Validate that node_id is not empty
+            if (nodeId != null && nodeId.length == 0) {
+                LOG.error("node_id cannot be empty. Skipping message with saga_id: " + 
+                        (sagaId != null ? sagaId.toString() : "unknown"));
+                return null;
+            }
+        } else {
+            LOG.error("node_id is required but was null. Skipping message.");
+            return null;
         }
 
         // Parse create_timestamp (long)

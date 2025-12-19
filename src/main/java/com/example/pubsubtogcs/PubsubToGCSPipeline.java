@@ -125,12 +125,21 @@ public class PubsubToGCSPipeline {
      * DoFn to parse PubsubMessage to Avro GenericRecord.
      */
     private static class PubsubToAvroParser extends DoFn<PubsubMessage, GenericRecord> {
+        /**
+         * Avro schema for message records.
+         * Constraints:
+         * - saga_id: required, non-null string (UUID format)
+         * - node_id: required, non-null, non-empty bytes
+         * - create_timestamp: required, non-null long
+         * - header: optional, nullable bytes
+         * - body: optional, nullable bytes
+         */
         private static final String AVRO_SCHEMA_JSON = "{\n" +
                 "  \"type\": \"record\",\n" +
                 "  \"name\": \"MessageRecord\",\n" +
                 "  \"fields\": [\n" +
-                "    {\"name\": \"saga_id\", \"type\": [\"null\", \"string\"], \"default\": null},\n" +
-                "    {\"name\": \"node_id\", \"type\": [\"null\", \"bytes\"], \"default\": null},\n" +
+                "    {\"name\": \"saga_id\", \"type\": \"string\"},\n" +
+                "    {\"name\": \"node_id\", \"type\": \"bytes\"},\n" +
                 "    {\"name\": \"create_timestamp\", \"type\": \"long\"},\n" +
                 "    {\"name\": \"header\", \"type\": [\"null\", \"bytes\"], \"default\": null},\n" +
                 "    {\"name\": \"body\", \"type\": [\"null\", \"bytes\"], \"default\": null}\n" +

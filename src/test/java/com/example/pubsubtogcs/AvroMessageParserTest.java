@@ -26,8 +26,8 @@ public class AvroMessageParserTest {
             "  \"type\": \"record\",\n" +
             "  \"name\": \"MessageRecord\",\n" +
             "  \"fields\": [\n" +
-            "    {\"name\": \"saga_id\", \"type\": [\"null\", \"string\"], \"default\": null},\n" +
-            "    {\"name\": \"node_id\", \"type\": [\"null\", \"bytes\"], \"default\": null},\n" +
+            "    {\"name\": \"saga_id\", \"type\": \"string\"},\n" +
+            "    {\"name\": \"node_id\", \"type\": \"bytes\"},\n" +
             "    {\"name\": \"create_timestamp\", \"type\": \"long\"},\n" +
             "    {\"name\": \"header\", \"type\": [\"null\", \"bytes\"], \"default\": null},\n" +
             "    {\"name\": \"body\", \"type\": [\"null\", \"bytes\"], \"default\": null}\n" +
@@ -76,10 +76,12 @@ public class AvroMessageParserTest {
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA_JSON);
         GenericRecord record = new GenericData.Record(schema);
         
+        String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
+        byte[] nodeId = "node1".getBytes();
         long timestamp = 1234567890L;
 
-        record.put("saga_id", null);
-        record.put("node_id", null);
+        record.put("saga_id", sagaIdStr);
+        record.put("node_id", ByteBuffer.wrap(nodeId));
         record.put("create_timestamp", timestamp);
         record.put("header", null);
         record.put("body", null);
@@ -90,8 +92,8 @@ public class AvroMessageParserTest {
 
         PAssert.that(output).satisfies(messages -> {
             Message message = messages.iterator().next();
-            assertNull(message.getSagaId());
-            assertNull(message.getNodeId());
+            assertEquals(UUID.fromString(sagaIdStr), message.getSagaId());
+            assertArrayEquals(nodeId, message.getNodeId());
             assertEquals(timestamp, message.getCreateTimestamp());
             assertNull(message.getHeader());
             assertNull(message.getBody());
@@ -107,10 +109,11 @@ public class AvroMessageParserTest {
         GenericRecord record = new GenericData.Record(schema);
         
         String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
+        byte[] nodeId = "node2".getBytes();
         long timestamp = 1234567890L;
 
         record.put("saga_id", sagaIdStr);
-        record.put("node_id", null);
+        record.put("node_id", ByteBuffer.wrap(nodeId));
         record.put("create_timestamp", timestamp);
         record.put("header", null);
         record.put("body", null);
@@ -133,12 +136,13 @@ public class AvroMessageParserTest {
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA_JSON);
         GenericRecord record = new GenericData.Record(schema);
         
+        String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
         byte[] nodeId = "node".getBytes();
         byte[] header = "header".getBytes();
         byte[] body = "body".getBytes();
         long timestamp = 1234567890L;
 
-        record.put("saga_id", null);
+        record.put("saga_id", sagaIdStr);
         record.put("node_id", ByteBuffer.wrap(nodeId));
         record.put("create_timestamp", timestamp);
         record.put("header", ByteBuffer.wrap(header));
@@ -164,10 +168,12 @@ public class AvroMessageParserTest {
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA_JSON);
         GenericRecord record = new GenericData.Record(schema);
         
+        String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
+        byte[] nodeId = "node3".getBytes();
         int timestamp = 1234567890;
 
-        record.put("saga_id", null);
-        record.put("node_id", null);
+        record.put("saga_id", sagaIdStr);
+        record.put("node_id", ByteBuffer.wrap(nodeId));
         record.put("create_timestamp", timestamp);
         record.put("header", null);
         record.put("body", null);
@@ -190,13 +196,14 @@ public class AvroMessageParserTest {
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA_JSON);
         GenericRecord record = new GenericData.Record(schema);
         
-        byte[] emptyNodeId = new byte[0];
+        String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
+        byte[] nodeId = "node4".getBytes();  // node_id must be non-empty
         byte[] emptyHeader = new byte[0];
         byte[] emptyBody = new byte[0];
         long timestamp = 1234567890L;
 
-        record.put("saga_id", null);
-        record.put("node_id", ByteBuffer.wrap(emptyNodeId));
+        record.put("saga_id", sagaIdStr);
+        record.put("node_id", ByteBuffer.wrap(nodeId));
         record.put("create_timestamp", timestamp);
         record.put("header", ByteBuffer.wrap(emptyHeader));
         record.put("body", ByteBuffer.wrap(emptyBody));
@@ -207,12 +214,37 @@ public class AvroMessageParserTest {
 
         PAssert.that(output).satisfies(messages -> {
             Message message = messages.iterator().next();
-            assertArrayEquals(emptyNodeId, message.getNodeId());
+            assertArrayEquals(nodeId, message.getNodeId());
             assertArrayEquals(emptyHeader, message.getHeader());
             assertArrayEquals(emptyBody, message.getBody());
             assertFalse(message.hasHeaderAndBody());
             return null;
         });
+
+        pipeline.run();
+    }
+
+    @Test
+    public void testParseAvroRecord_EmptyNodeId_ShouldBeRejected() {
+        Schema schema = new Schema.Parser().parse(AVRO_SCHEMA_JSON);
+        GenericRecord record = new GenericData.Record(schema);
+        
+        String sagaIdStr = "550e8400-e29b-41d4-a716-446655440000";
+        byte[] emptyNodeId = new byte[0];
+        long timestamp = 1234567890L;
+
+        record.put("saga_id", sagaIdStr);
+        record.put("node_id", ByteBuffer.wrap(emptyNodeId));
+        record.put("create_timestamp", timestamp);
+        record.put("header", null);
+        record.put("body", null);
+
+        PCollection<GenericRecord> input = pipeline.apply(
+                Create.of(record).withCoder(org.apache.beam.sdk.coders.AvroCoder.of(schema)));
+        PCollection<Message> output = input.apply(ParDo.of(new AvroMessageParser()));
+
+        // Empty node_id should be rejected, so output should be empty
+        PAssert.that(output).empty();
 
         pipeline.run();
     }
