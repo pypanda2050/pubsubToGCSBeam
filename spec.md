@@ -1,0 +1,4 @@
+* Write PubsubToGCSPipeline with Java Apache beam to stream data from message object(saga _id uuid, node_id byte[], create_timestamp long, header byte[] and body byte[]) from GCP PubSub. 
+* The messages will write to one output file in csv format under event_processing prefix appended with create_timestamp truncated to minute.
+* If either header or body of the message are not empty, it also needs to write to another output file in csv format under event_data prefix key appended with create_timestamp truncated to minute.
+* The message should only be removed from PubSub after it has been writen to output files successfully. If there is error to parse avro message, the message should write to event_dlq topic in PubSub.

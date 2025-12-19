@@ -17,13 +17,17 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Apache Beam pipeline to stream data from GCP PubSub and write to GCS in CSV format.
+ * Apache Beam pipeline to stream data from GCP PubSub and write to GCS in CSV
+ * format.
  */
 public class PubsubToGCSPipeline {
     private static final Logger LOG = LoggerFactory.getLogger(PubsubToGCSPipeline.class);
@@ -35,17 +39,26 @@ public class PubsubToGCSPipeline {
         @Description("PubSub subscription to read from")
         @Default.String("projects/YOUR_PROJECT/subscriptions/YOUR_SUBSCRIPTION")
         String getInputSubscription();
+
         void setInputSubscription(String value);
 
         @Description("GCS bucket to write output files")
         @Default.String("gs://YOUR_BUCKET")
         String getOutputBucket();
+
         void setOutputBucket(String value);
 
         @Description("GCS output path prefix")
         @Default.String("output")
         String getOutputPathPrefix();
+
         void setOutputPathPrefix(String value);
+
+        @Description("PubSub topic for Dead Letter Queue (DLQ) for failed messages")
+        @Default.String("projects/YOUR_PROJECT/topics/event_dlq")
+        String getDlqTopic();
+
+        void setDlqTopic(String value);
     }
 
     public static void main(String[] args) {
@@ -60,10 +73,19 @@ public class PubsubToGCSPipeline {
                 .apply("Read from PubSub",
                         PubsubIO.readMessages().fromSubscription(options.getInputSubscription()));
 
-        // Parse Avro messages
-        PCollection<Message> messages = pubsubMessages
-                .apply("Parse Avro Messages", ParDo.of(new PubsubToAvroParser()))
+        // Parse Avro messages with DLQ handling
+        PCollectionTuple parsedResults = pubsubMessages
+                .apply("Parse Avro Messages", ParDo.of(new PubsubToAvroParser())
+                        .withOutputTags(PubsubToAvroParser.SUCCESS_TAG,
+                                TupleTagList.of(PubsubToAvroParser.FAILURE_TAG)));
+
+        // Success path
+        PCollection<Message> messages = parsedResults.get(PubsubToAvroParser.SUCCESS_TAG)
                 .apply("Convert to Message", ParDo.of(new AvroMessageParser()));
+
+        // Failure path - Write to DLQ
+        parsedResults.get(PubsubToAvroParser.FAILURE_TAG)
+                .apply("Write Failures to DLQ", PubsubIO.writeMessages().to(options.getDlqTopic()));
 
         // Write to event_processing (all messages)
         writeEventProcessing(messages, options);
@@ -124,7 +146,12 @@ public class PubsubToGCSPipeline {
     /**
      * DoFn to parse PubsubMessage to Avro GenericRecord.
      */
-    private static class PubsubToAvroParser extends DoFn<PubsubMessage, GenericRecord> {
+    static class PubsubToAvroParser extends DoFn<PubsubMessage, GenericRecord> {
+        public static final TupleTag<GenericRecord> SUCCESS_TAG = new TupleTag<>() {
+        };
+        public static final TupleTag<PubsubMessage> FAILURE_TAG = new TupleTag<>() {
+        };
+
         /**
          * Avro schema for message records.
          * Constraints:
@@ -157,20 +184,22 @@ public class PubsubToGCSPipeline {
 
         @ProcessElement
         public void processElement(ProcessContext c) {
+            PubsubMessage pubsubMessage = c.element();
             try {
-                PubsubMessage pubsubMessage = c.element();
                 byte[] payload = pubsubMessage.getPayload();
-                
+
                 if (payload == null || payload.length == 0) {
-                    LOG.warn("Received empty payload, skipping");
+                    LOG.warn("Received empty payload, routing to DLQ");
+                    c.output(FAILURE_TAG, pubsubMessage);
                     return;
                 }
-                
+
                 Decoder decoder = DecoderFactory.get().binaryDecoder(payload, null);
                 GenericRecord record = reader.read(null, decoder);
-                c.output(record);
+                c.output(SUCCESS_TAG, record);
             } catch (Exception e) {
-                LOG.error("Error parsing PubsubMessage to Avro", e);
+                LOG.error("Error parsing PubsubMessage to Avro, routing to DLQ", e);
+                c.output(FAILURE_TAG, pubsubMessage);
             }
         }
     }
@@ -212,4 +241,3 @@ public class PubsubToGCSPipeline {
         }
     }
 }
-
